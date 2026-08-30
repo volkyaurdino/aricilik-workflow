@@ -18,6 +18,45 @@ class AricilikWorkflowApp extends StatelessWidget {
   }
 }
 
+enum NodeCategory {
+  feeding,
+  health,
+  hivePhysical,
+  colony,
+  environment,
+  production,
+}
+
+class WorkflowNode {
+  WorkflowNode({
+    required this.id,
+    required this.title,
+    required this.icon,
+    required this.info,
+    required this.category,
+    required this.position,
+  });
+
+  final String id;
+  final String title;
+  final String icon;
+  final String info;
+  final NodeCategory category;
+  Offset position;
+}
+
+class WorkflowConnection {
+  WorkflowConnection({
+    required this.id,
+    required this.fromNodeId,
+    required this.toNodeId,
+  });
+
+  final String id;
+  final String fromNodeId;
+  final String toNodeId;
+}
+
 class WorkflowScreen extends StatefulWidget {
   const WorkflowScreen({super.key});
 
@@ -26,184 +65,47 @@ class WorkflowScreen extends StatefulWidget {
 }
 
 class _WorkflowScreenState extends State<WorkflowScreen> {
-  final Map<String, Offset> positions = {
-    'İKLİM': const Offset(70, 100),
-    'FLORA': const Offset(40, 330),
-    'KOLONİ': const Offset(310, 280),
-    'KOVAN': const Offset(310, 500),
-    'ÜRETİM': const Offset(590, 280),
-  };
+  final TransformationController transformationController =
+      TransformationController();
+
+  static const double nodeWidth = 190;
+  static const double nodeHeight = 105;
+
+  late final List<WorkflowNode> nodes;
+
+  final List<WorkflowConnection> connections = [];
+
+  String? draggingFromNodeId;
+  Offset? draggingConnectionEnd;
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('🐝 Arıcılık Workflow v0.1'),
-        backgroundColor: const Color(0xFF202124),
+  void initState() {
+    super.initState();
+
+    nodes = [
+      WorkflowNode(
+        id: 'iklim',
+        title: 'İKLİM',
+        icon: '🌦️',
+        info: 'Nisan • 22 °C',
+        category: NodeCategory.environment,
+        position: const Offset(80, 80),
       ),
-      body: InteractiveViewer(
-        minScale: 0.5,
-        maxScale: 2.5,
-        boundaryMargin: const EdgeInsets.all(600),
-        constrained: false,
-        child: SizedBox(
-          width: 1000,
-          height: 1000,
-          child: Stack(
-            children: [
-              Positioned.fill(
-                child: CustomPaint(
-                  painter: ConnectionPainter(positions),
-                ),
-              ),
-
-              buildNode('İKLİM', '🌦️', 'Nisan • 22 °C'),
-              buildNode('FLORA', '🌼', 'Nektar: Orta'),
-              buildNode('KOLONİ', '🐝', '18.000 işçi arı'),
-              buildNode('KOVAN', '🏠', '10 çerçeve'),
-              buildNode('ÜRETİM', '🍯', 'Bal: 4.2 kg'),
-            ],
-          ),
-        ),
+      WorkflowNode(
+        id: 'flora',
+        title: 'FLORA',
+        icon: '🌼',
+        info: 'Nektar: Orta',
+        category: NodeCategory.environment,
+        position: const Offset(70, 300),
       ),
-    );
-  }
-
-  Widget buildNode(String name, String icon, String info) {
-    final position = positions[name]!;
-
-    return Positioned(
-      left: position.dx,
-      top: position.dy,
-      child: GestureDetector(
-        onPanUpdate: (details) {
-          setState(() {
-            positions[name] = positions[name]! + details.delta;
-          });
-        },
-        child: Container(
-          width: 180,
-          decoration: BoxDecoration(
-            color: const Color(0xFF303238),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: const Color(0xFF666A73),
-              width: 1.4,
-            ),
-            boxShadow: const [
-              BoxShadow(
-                color: Colors.black54,
-                blurRadius: 8,
-                offset: Offset(2, 4),
-              ),
-            ],
-          ),
-          child: Column(
-            children: [
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-                decoration: const BoxDecoration(
-                  color: Color(0xFF454850),
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(11),
-                    topRight: Radius.circular(11),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Text(
-                      icon,
-                      style: const TextStyle(fontSize: 21),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      name,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(14),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 12,
-                      height: 12,
-                      decoration: const BoxDecoration(
-                        color: Colors.orange,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        info,
-                        style: const TextStyle(fontSize: 14),
-                      ),
-                    ),
-                    Container(
-                      width: 12,
-                      height: 12,
-                      decoration: const BoxDecoration(
-                        color: Colors.greenAccent,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
+      WorkflowNode(
+        id: 'koloni',
+        title: 'KOLONİ',
+        icon: '🐝',
+        info: '18.000 işçi arı',
+        category: NodeCategory.colony,
+        position: const Offset(360, 250),
       ),
-    );
-  }
-}
-
-class ConnectionPainter extends CustomPainter {
-  final Map<String, Offset> positions;
-
-  ConnectionPainter(this.positions);
-
-  void connect(Canvas canvas, String from, String to) {
-    final paint = Paint()
-      ..color = Colors.orangeAccent
-      ..strokeWidth = 3
-      ..style = PaintingStyle.stroke;
-
-    final start = positions[from]! + const Offset(180, 55);
-    final end = positions[to]! + const Offset(0, 55);
-
-    final path = Path();
-    path.moveTo(start.dx, start.dy);
-
-    final middle = (start.dx + end.dx) / 2;
-
-    path.cubicTo(
-      middle,
-      start.dy,
-      middle,
-      end.dy,
-      end.dx,
-      end.dy,
-    );
-
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    connect(canvas, 'İKLİM', 'KOLONİ');
-    connect(canvas, 'FLORA', 'KOLONİ');
-    connect(canvas, 'KOLONİ', 'ÜRETİM');
-    connect(canvas, 'KOVAN', 'KOLONİ');
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
-}
+      WorkflowNode(
+        id: 'kovan',
