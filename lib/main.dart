@@ -685,7 +685,7 @@ class CableTouchPainter extends CustomPainter {
       double distance = 0;
 
       while (distance <= metric.length) {
-        final Tangent? tangent =
+        final tangent =
             metric.getTangentForOffset(distance);
 
         if (tangent != null &&
